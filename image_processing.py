@@ -3,6 +3,9 @@ import numpy as np
 import os
 import math
 
+import subprocess
+import sys
+
 
 def trace_segment(start_pt, points):
     segment = [start_pt]
@@ -59,11 +62,35 @@ def extract_smooth_skeleton(skel):
                 break # Hết đường, ngắt nét tại đây.
                 
             # Đi tới pixel liền kề đầu tiên và xóa nó đi (để không bao giờ đi lùi)
-            current = neighbors[0]
+            current = choose_next_point(current, neighbors, ordered_points)
             points.remove(current)
             ordered_points.append(current)
             
     return ordered_points
+
+def choose_next_point(current, neighbors, ordered_points):
+    if len(ordered_points) < 2:
+        return neighbors[0]
+
+    prev = ordered_points[-2]
+
+    dir_x = current[0] - prev[0]
+    dir_y = current[1] - prev[1]
+
+    best_point = neighbors[0]
+    best_score = -999999
+
+    for cand in neighbors:
+        step_x = cand[0] - current[0]
+        step_y = cand[1] - current[1]
+
+        score = dir_x * step_x + dir_y * step_y
+
+        if score > best_score:
+            best_score = score
+            best_point = cand
+
+    return best_point
 
 def process_image():
     print("=== MODULE 1: XU LY ANH CHU KY ===")
@@ -137,6 +164,19 @@ def process_image():
 
         print(f"Da xuat {len(final_smoothed_points)} diem ra file:")
         print(output_path)
+
+        print("Dang chay module Khang de tao bsplinecurve.dat...")
+
+        try:
+            subprocess.run(
+                [sys.executable, "bspline_reconstruct_khang.py"],
+                check=True
+            )
+
+            print("Da tao xong data/bsplinecurve.dat")
+
+        except subprocess.CalledProcessError:
+            print("Loi khi chay bspline_reconstruct_khang.py")
 
         result_vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         result_vis[skel == 255] = [255, 200, 200]

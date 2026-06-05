@@ -319,12 +319,11 @@ def process_image_pipeline(img_bytes: bytes, log: list) -> tuple:
     blurred = cv2.GaussianBlur(img, (5, 5), 0)
     _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # ── Morphological close only (không dilate để giữ nguyên hình dạng nét) ──
-    # Dilate làm phồng nét → Zhang-Suen thinning sẽ tạo ra hình méo (vòng tròn → U)
-    # Chỉ dùng close để lấp những khoảng trống nhỏ mà không làm mất hình dạng
-    log.append("🔧  Xử lý hình thái học (close) …")
+    # ── Morphological close + dilate ───────────────────────────────────────
+    log.append("🔧  Xử lý hình thái học (đóng + giãn nở) …")
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    thick_binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=2)
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=1)
+    thick_binary = cv2.dilate(closed, kernel, iterations=1)
 
     # ── Zhang-Suen thinning ────────────────────────────────────────────────
     log.append("🦴  Đang làm mỏng theo thuật toán Zhang-Suen …")
@@ -617,16 +616,14 @@ def plot_original(img: np.ndarray) -> bytes:
 
 
 def plot_skeleton(skel: np.ndarray) -> bytes:
-    """Hiển thị khung xương trên nền trắng (giống ảnh gốc) để dễ so sánh."""
-    # Nền trắng, nét skeleton màu xanh đậm → dễ đọc và so sánh với ảnh gốc
-    display = np.full((*skel.shape, 3), 255, dtype=np.uint8)  # nền trắng
-    display[skel == 255] = [30, 80, 180]                       # nét xanh đậm
-    fig, ax = plt.subplots(figsize=(6, 4), facecolor="white")
+    fig, ax = plt.subplots(figsize=(6, 4), facecolor="#0d1117")
+    display = np.zeros((*skel.shape, 3), dtype=np.uint8)
+    display[skel == 255] = [88, 166, 255]
     ax.imshow(display)
-    ax.set_title("Khung xương (Zhang-Suen)", color="#222",
+    ax.set_title("Khung xương (Zhang-Suen)", color="#c9d1d9",
                  fontsize=11, fontweight="600", pad=10)
     ax.axis("off")
-    fig.patch.set_facecolor("white")
+    fig.patch.set_facecolor("#0d1117")
     plt.tight_layout()
     data = fig_to_bytes(fig)
     plt.close(fig)
@@ -634,35 +631,16 @@ def plot_skeleton(skel: np.ndarray) -> bytes:
 
 
 def plot_extracted_points(ordered_pts: list, img_shape: tuple) -> bytes:
-    """Vẽ đường đi của các điểm bằng line plot có màu gradient → thấy rõ hướng DFS."""
     fig, ax = plt.subplots(figsize=(6, 4), facecolor="#0d1117")
     ax.set_facecolor("#010409")
     if ordered_pts:
-        xs = np.array([p[0] for p in ordered_pts], dtype=float)
-        ys = np.array([p[1] for p in ordered_pts], dtype=float)
-        n  = len(xs)
-        # Vẽ từng đoạn nhỏ với màu gradient (plasma: tím → vàng theo thứ tự)
-        cmap = plt.get_cmap("plasma")
-        # Dùng LineCollection để tô màu từng đoạn
-        from matplotlib.collections import LineCollection
-        points   = np.array([xs, ys]).T.reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, cmap="plasma",
-                            norm=plt.Normalize(0, n),
-                            linewidth=1.2, alpha=0.9)
-        lc.set_array(np.arange(n - 1))
-        ax.add_collection(lc)
-        cb = plt.colorbar(lc, ax=ax, label="Thứ tự", shrink=0.8)
+        xs = [p[0] for p in ordered_pts]
+        ys = [p[1] for p in ordered_pts]
+        sc = ax.scatter(xs, ys, c=range(len(xs)), cmap="plasma",
+                        s=1.5, alpha=0.8, linewidths=0)
+        cb = plt.colorbar(sc, ax=ax, label="Thứ tự", shrink=0.8)
         cb.ax.yaxis.label.set_color("#8b949e")
         cb.ax.tick_params(colors="#6e7681")
-        # Đánh dấu điểm bắt đầu (xanh lá) và kết thúc (đỏ)
-        ax.scatter([xs[0]],  [ys[0]],  s=40, color="#56d364", zorder=5,
-                   label="Bắt đầu", linewidths=0)
-        ax.scatter([xs[-1]], [ys[-1]], s=40, color="#f78166", zorder=5,
-                   label="Kết thúc", linewidths=0)
-        legend = ax.legend(fontsize=7, framealpha=0.2, labelcolor="#c9d1d9",
-                           edgecolor="#21262d", loc="lower right")
-        legend.get_frame().set_facecolor("#161b22")
     ax.set_xlim(0, img_shape[1])
     ax.set_ylim(img_shape[0], 0)
     ax.set_title("Điểm được trích xuất & sắp xếp", color="#c9d1d9",

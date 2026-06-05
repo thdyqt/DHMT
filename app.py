@@ -525,10 +525,23 @@ def LSTBSplineReconstruction(Q: np.ndarray, degree: int = 3,
         for i_ctrl in range(n):
             N[k, i_ctrl] = Nip(i_ctrl, Udegree, ubar[k], Uknot)
 
-    # Regularised normal equations:  (N^T N + λ I) P = N^T Q
+    # ── Second-order difference matrix D2 (n-2 × n) ──────────────────────
+    # Penalises curvature of the control polygon (Δ²Pᵢ = Pᵢ - 2Pᵢ₊₁ + Pᵢ₊₂)
+    # Unlike λ·I which shrinks control points toward 0 (causing curve collapse),
+    # D2ᵀD2 only penalises bending → curves stay large but become smoother.
+    D2 = np.zeros((max(1, n - 2), n))
+    for i in range(n - 2):
+        D2[i, i]     =  1.0
+        D2[i, i + 1] = -2.0
+        D2[i, i + 2] =  1.0
+
+    # Scale λ by data variance so the slider is scale-independent
+    data_scale = float(np.mean(np.var(Q[:, :2], axis=0))) + 1e-8
+
+    # Regularised normal equations:  (NᵀN + λ·scale·D2ᵀD2) P = NᵀQ
     NT_N = np.dot(N.T, N)
     NT_Q = np.dot(N.T, Q)
-    A = NT_N + smooth_lambda * np.eye(n)
+    A = NT_N + smooth_lambda * data_scale * np.dot(D2.T, D2)
 
     # Solve for P (double *P4 — X, Y, Z; W is always 1.0)
     P = np.linalg.lstsq(A, NT_Q, rcond=None)[0]

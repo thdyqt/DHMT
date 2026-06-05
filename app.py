@@ -5,7 +5,6 @@ if _sys.argv[0].endswith("app.py") and "streamlit.runtime.scriptrunner" not in _
     _sys.exit(0)
 
 import io
-import math
 import os
 
 import cv2
@@ -15,9 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
 
-# ──────────────────────────────────────────────────────────────────────────────
-# PAGE CONFIG
-# ──────────────────────────────────────────────────────────────────────────────
+# ── Cấu hình trang ──────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Tái tạo Chữ ký B-Spline",
     page_icon="✍️",
@@ -25,31 +22,24 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ──────────────────────────────────────────────────────────────────────────────
-# CUSTOM CSS
-# ──────────────────────────────────────────────────────────────────────────────
+# ── CSS giao diện tối ────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Google Font ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* ── Global reset ── */
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-/* ── Dark background ── */
 .stApp {
     background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
     color: #e6edf3;
 }
 
-/* ── Sidebar ── */
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
     border-right: 1px solid #21262d;
 }
 [data-testid="stSidebar"] * { color: #c9d1d9 !important; }
 
-/* ── Sidebar header ── */
 .sidebar-header {
     background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
     border-radius: 12px;
@@ -70,7 +60,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin: 4px 0 0;
 }
 
-/* ── Section label ── */
 .section-label {
     font-size: 0.7rem;
     font-weight: 600;
@@ -80,7 +69,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin: 20px 0 8px;
 }
 
-/* ── Dashboard title ── */
 .dashboard-title {
     background: linear-gradient(90deg, #1f6feb, #58a6ff, #79c0ff);
     -webkit-background-clip: text;
@@ -96,7 +84,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin-top: 4px;
 }
 
-/* ── Glass card ── */
 .glass-card {
     background: rgba(22, 27, 34, 0.8);
     border: 1px solid #21262d;
@@ -115,7 +102,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     gap: 8px;
 }
 
-/* ── Metric pill ── */
 .metric-row {
     display: flex;
     gap: 12px;
@@ -143,7 +129,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin-top: 2px;
 }
 
-/* ── Pipeline step badge ── */
 .step-badge {
     display: inline-flex;
     align-items: center;
@@ -158,7 +143,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     margin-bottom: 10px;
 }
 
-/* ── File uploader ── */
 [data-testid="stFileUploader"] {
     border: 2px dashed #1f6feb66 !important;
     border-radius: 16px !important;
@@ -170,7 +154,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     background: rgba(31, 111, 235, 0.1) !important;
 }
 
-/* ── Download buttons ── */
 .stDownloadButton > button {
     background: linear-gradient(135deg, #1f6feb, #388bfd) !important;
     color: #fff !important;
@@ -187,15 +170,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     box-shadow: 0 6px 20px rgba(31,111,235,0.5) !important;
 }
 
-/* ── Sliders ── */
 [data-testid="stSlider"] > div > div > div > div {
     background: linear-gradient(90deg, #1f6feb, #388bfd) !important;
 }
 
-/* ── Success / info banners ── */
 .stAlert { border-radius: 10px !important; }
 
-/* ── Tabs ── */
 [data-testid="stTab"] {
     font-weight: 500 !important;
     color: #8b949e !important;
@@ -205,12 +185,10 @@ button[data-baseweb="tab"][aria-selected="true"] {
     border-bottom-color: #1f6feb !important;
 }
 
-/* ── Progress bar ── */
 .stProgress > div > div > div > div {
     background: linear-gradient(90deg, #1f6feb, #58a6ff) !important;
 }
 
-/* ── Log box ── */
 .log-box {
     background: #010409;
     border: 1px solid #21262d;
@@ -224,21 +202,18 @@ button[data-baseweb="tab"][aria-selected="true"] {
     line-height: 1.7;
 }
 
-/* ── Divider ── */
 hr { border-color: #21262d !important; }
-
-/* ── Matplotlib figures ── */
 .stImage img { border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MODULE 1 — IMAGE PROCESSING  (image_processing.py logic)
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# MODULE 1 — XỬ LÝ ẢNH
+# ════════════════════════════════════════════════════════════════════════════
 
 def choose_next_point(current, neighbors, ordered_points):
-    """Direction-aware greedy next-pixel selector."""
+    """Chọn điểm tiếp theo theo hướng chuyển động hiện tại (tham lam có hướng)."""
     if len(ordered_points) < 2:
         return neighbors[0]
     prev = ordered_points[-2]
@@ -256,16 +231,13 @@ def choose_next_point(current, neighbors, ordered_points):
 
 
 def extract_smooth_skeleton(skel):
-    """
-    Branch-tracing DFS that extracts ordered pixels from a skeletonised binary
-    image without any overlap (anti-overlapping guarantee).
-    """
+    """Duyệt DFS theo nhánh để trích xuất pixel khung xương theo thứ tự, không trùng lặp."""
     y_idx, x_idx = np.where(skel == 255)
     points = set(zip(x_idx.tolist(), y_idx.tolist()))
     ordered_points = []
 
     while points:
-        # Prefer end-points (exactly 1 neighbour) as starting seeds
+        # Ưu tiên chọn điểm đầu mút (chỉ có 1 láng giềng) làm điểm bắt đầu
         start_p = next(iter(points))
         for p in points:
             neighbours = sum(
@@ -297,14 +269,8 @@ def extract_smooth_skeleton(skel):
 
 def process_image_pipeline(img_bytes: bytes, log: list) -> tuple:
     """
-    Full image-processing pipeline.
-
-    Returns
-    -------
-    original_img  : np.ndarray  (grayscale)
-    skel          : np.ndarray  (binary skeleton)
-    ordered_pts   : list[(x, y)]
-    diempixel_dat : str         (content of diempixel.dat)
+    Pipeline xử lý ảnh đầy đủ.
+    Trả về: ảnh gốc (grayscale), khung xương, danh sách điểm có thứ tự, nội dung diempixel.dat
     """
     log.append("📷  Đang giải mã ảnh đã tải lên …")
     nparr = np.frombuffer(img_bytes, np.uint8)
@@ -314,31 +280,29 @@ def process_image_pipeline(img_bytes: bytes, log: list) -> tuple:
 
     log.append(f"✅  Ảnh đã tải — kích thước: {img.shape[1]}×{img.shape[0]} px")
 
-    # ── Gaussian blur + Otsu thresholding ──────────────────────────────────
+    # Gaussian blur + ngưỡng hóa Otsu để tách nét chữ khỏi nền
     log.append("🔧  Áp dụng Gaussian blur + ngưỡng hóa Otsu …")
     blurred = cv2.GaussianBlur(img, (5, 5), 0)
     _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # ── Morphological close + dilate ───────────────────────────────────────
+    # Đóng hình thái học để lấp các khoảng hở nhỏ trên nét chữ
     log.append("🔧  Xử lý hình thái học (đóng + giãn nở) …")
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=1)
     thick_binary = cv2.dilate(closed, kernel, iterations=1)
 
-    # ── Zhang-Suen thinning ────────────────────────────────────────────────
+    # Làm mỏng nét theo thuật toán Zhang-Suen → khung xương 1 pixel
     log.append("🦴  Đang làm mỏng theo thuật toán Zhang-Suen …")
     skel = cv2.ximgproc.thinning(thick_binary, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
     skel_px = int(np.sum(skel == 255))
     log.append(f"✅  Bộ khung xương đã trích xuất — {skel_px:,} pixel khung xương")
 
-    # ── Branch-tracing DFS ─────────────────────────────────────────────────
+    # Trích xuất và sắp xếp các điểm pixel theo thứ tự đi qua
     log.append("🔍  Theo dõi nhánh khung xương (DFS) …")
     ordered_pts = extract_smooth_skeleton(skel)
     log.append(f"✅  Trích xuất {len(ordered_pts):,} điểm pixel có thứ tự")
 
-    # ── Build diempixel.dat content ────────────────────────────────────────
-    # Giữ nguyên tọa độ pixel (y tăng xuống dưới, gốc ở góc trên trái)
-    # để ảnh tái tạo khớp chính xác với ảnh gốc
+    # Lưu tọa độ pixel gốc (y tăng xuống dưới) để ảnh tái tạo khớp với ảnh gốc
     log.append("💾  Định dạng diempixel.dat …")
     lines = [f"{len(ordered_pts)}\n"]
     for x, y in ordered_pts:
@@ -349,19 +313,12 @@ def process_image_pipeline(img_bytes: bytes, log: list) -> tuple:
     return img, skel, ordered_pts, diempixel_dat
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MODULE 2 — B-SPLINE MATHEMATICS  (B_Spline_LST_Math.py logic)
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# MODULE 2 — TOÁN HỌC B-SPLINE
+# ════════════════════════════════════════════════════════════════════════════
 
 def read_data(diempixel_content: str) -> np.ndarray:
-    """
-    Required function 1 (academic).
-    Reads pixel-point data from the diempixel.dat string content.
-
-    Returns
-    -------
-    Q : np.ndarray, shape (m, 3)   — [X, Y, Z] columns
-    """
+    """Hàm 1 (học thuật): Đọc dữ liệu điểm pixel từ nội dung diempixel.dat. Trả về Q shape (m,3)."""
     lines = diempixel_content.strip().splitlines()
     Q = []
     for line in lines[1:]:
@@ -369,12 +326,12 @@ def read_data(diempixel_content: str) -> np.ndarray:
         if len(parts) >= 3:
             Q.append([float(parts[0]), float(parts[1]), float(parts[2])])
     if not Q:
-        raise ValueError("diempixel.dat contains no data points.")
+        raise ValueError("diempixel.dat không có dữ liệu điểm.")
     return np.array(Q)
 
 
 def chord_length_parameterization(Q: np.ndarray) -> np.ndarray:
-    """Chord-length parameterisation → ubar ∈ [0, 1]."""
+    """Tham số hóa theo độ dài dây cung → ubar ∈ [0, 1]."""
     m = len(Q)
     distances = np.zeros(m)
     total_length = 0.0
@@ -382,7 +339,7 @@ def chord_length_parameterization(Q: np.ndarray) -> np.ndarray:
         distances[i] = np.linalg.norm(Q[i] - Q[i - 1])
         total_length += distances[i]
     if total_length == 0:
-        raise ValueError("Total chord length is 0 — degenerate stroke.")
+        raise ValueError("Tổng độ dài dây cung bằng 0 — nét bị suy biến.")
     ubar = np.zeros(m)
     ubar[-1] = 1.0
     for i in range(1, m - 1):
@@ -391,7 +348,7 @@ def chord_length_parameterization(Q: np.ndarray) -> np.ndarray:
 
 
 def generate_knot_vector(n: int, p: int) -> np.ndarray:
-    """Generate a clamped uniform knot vector of size n+p+1."""
+    """Tạo vector nút kẹp đều cỡ n+p+1."""
     m_knots = n + p + 1
     U = np.zeros(m_knots)
     for i in range(p + 1):
@@ -404,9 +361,7 @@ def generate_knot_vector(n: int, p: int) -> np.ndarray:
 
 def Nip(i: int, p: int, u: float, U: np.ndarray) -> float:
     """
-    Required function 2 (academic).
-    Cox-de Boor recursion for the i-th B-spline basis function of degree p
-    evaluated at parameter u, given knot vector U.
+    Hàm 2 (học thuật): Đệ quy Cox-de Boor tính hàm cơ sở B-spline thứ i, bậc p tại tham số u.
     """
     if p == 0:
         if U[i] <= u < U[i + 1]:
@@ -428,19 +383,15 @@ def Nip(i: int, p: int, u: float, U: np.ndarray) -> float:
     return left + right
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MODULE 3 — RECONSTRUCTION  (bspline_reconstruct_khang.py logic)
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# MODULE 3 — TÁI TẠO B-SPLINE
+# ════════════════════════════════════════════════════════════════════════════
 
 def read_and_split_strokes(diempixel_content: str, jump_threshold: float = 2.0) -> list:
     """
-    Reads all pixel points from the diempixel.dat content string,
-    splits them into individual strokes by distance threshold,
-    applies Spur Pruning and Junction Healing.
-
-    Returns
-    -------
-    strokes : list of np.ndarray, each shape (m_i, 3)
+    Đọc tất cả điểm từ diempixel.dat, tách thành các nét riêng biệt theo ngưỡng khoảng cách,
+    áp dụng Spur Pruning (loại nét quá ngắn) và Junction Healing (gắn điểm cuối gần nhau).
+    Trả về danh sách các nét, mỗi nét là np.ndarray shape (m_i, 3).
     """
     lines = diempixel_content.strip().splitlines()
     Q_all = []
@@ -458,7 +409,7 @@ def read_and_split_strokes(diempixel_content: str, jump_threshold: float = 2.0) 
     for i in range(1, len(Q_all)):
         dist = np.linalg.norm(Q_all[i] - Q_all[i - 1])
         if dist > jump_threshold:
-            # Spur Pruning: discard strokes shorter than 15 points
+            # Spur Pruning: bỏ nét quá ngắn (< 15 điểm)
             if len(current_stroke) > 15:
                 strokes.append(np.array(current_stroke))
             current_stroke = [Q_all[i]]
@@ -468,7 +419,7 @@ def read_and_split_strokes(diempixel_content: str, jump_threshold: float = 2.0) 
     if len(current_stroke) > 15:
         strokes.append(np.array(current_stroke))
 
-    # Junction Healing: snap near-endpoints to closest point on other strokes
+    # Junction Healing: kéo điểm đầu/cuối nét về điểm gần nhất trên nét khác (nếu <= 5px)
     for i in range(len(strokes)):
         for end_idx in [0, -1]:
             best_dist = float("inf")
@@ -490,88 +441,55 @@ def read_and_split_strokes(diempixel_content: str, jump_threshold: float = 2.0) 
 def LSTBSplineReconstruction(Q: np.ndarray, degree: int = 3,
                               smooth_lambda: float = 0.001) -> tuple:
     """
-    Required function 3 (academic).
-    Regularised Least-Squares B-Spline Reconstruction.
-
-    Academic variables:
-        Unum    = n                (int)   — number of control points
-        Udegree = degree           (int)   — curve degree
-        Uknot   = U                (array) — knot vector  (double *Uknot)
-        P4      = P with W=1.0    (array) — homogeneous control points (double *P4)
-
-    Parameters
-    ----------
-    Q             : data points, shape (m, 3)
-    degree        : B-spline degree  (Udegree)
-    smooth_lambda : regularisation weight λ for smoothing
-
-    Returns
-    -------
-    P : np.ndarray, shape (n, 3) — control points  (Unum × 3 coords)
-    U : np.ndarray, shape (n+degree+1,) — knot vector (Uknot)
+    Hàm 3 (học thuật): Tái tạo B-Spline bằng bình phương nhỏ nhất có chính quy hóa.
+    Biến học thuật: Unum (số điểm điều khiển), Udegree (bậc), Uknot (vector nút), P4 (điểm điều khiển).
+    Trả về: P shape (n,3) — điểm điều khiển, Uknot shape (n+degree+1,) — vector nút.
     """
     m = len(Q)
 
-    # Dynamic control-point count: longer strokes get more control points
-    Unum = min(80, max(degree + 1, m // 3 + 2))   # int Unum
-    n = Unum                                        # alias for clarity
-    Udegree = degree                                # int Udegree
+    # Số điểm điều khiển tỉ lệ với độ dài nét, tối đa 80
+    Unum = min(80, max(degree + 1, m // 3 + 2))
+    n = Unum
+    Udegree = degree
 
     ubar = chord_length_parameterization(Q)
-    Uknot = generate_knot_vector(n, Udegree)       # double *Uknot
+    Uknot = generate_knot_vector(n, Udegree)
 
-    # Build basis matrix N  (m × n)
+    # Xây dựng ma trận cơ sở N (m × n)
     N = np.zeros((m, n))
     for k in range(m):
         for i_ctrl in range(n):
             N[k, i_ctrl] = Nip(i_ctrl, Udegree, ubar[k], Uknot)
 
-    # ── Second-order difference matrix D2 (n-2 × n) ──────────────────────
-    # Penalises curvature of the control polygon (Δ²Pᵢ = Pᵢ - 2Pᵢ₊₁ + Pᵢ₊₂)
-    # Unlike λ·I which shrinks control points toward 0 (causing curve collapse),
-    # D2ᵀD2 only penalises bending → curves stay large but become smoother.
+    # Ma trận sai phân bậc 2 D2 để phạt độ cong (Δ²Pᵢ = Pᵢ - 2Pᵢ₊₁ + Pᵢ₊₂)
     D2 = np.zeros((max(1, n - 2), n))
     for i in range(n - 2):
         D2[i, i]     =  1.0
         D2[i, i + 1] = -2.0
         D2[i, i + 2] =  1.0
 
-    # Scale λ by data variance so the slider is scale-independent
+    # Chuẩn hóa λ theo phương sai dữ liệu để slider độc lập với tỉ lệ ảnh
     data_scale = float(np.mean(np.var(Q[:, :2], axis=0))) + 1e-8
 
-    # Regularised normal equations:  (NᵀN + λ·scale·D2ᵀD2) P = NᵀQ
+    # Giải phương trình chuẩn: (NᵀN + λ·scale·D2ᵀD2) P = NᵀQ
     NT_N = np.dot(N.T, N)
     NT_Q = np.dot(N.T, Q)
     A = NT_N + smooth_lambda * data_scale * np.dot(D2.T, D2)
 
-    # Solve for P (double *P4 — X, Y, Z; W is always 1.0)
     P = np.linalg.lstsq(A, NT_Q, rcond=None)[0]
 
-    return P, Uknot  # Unum = len(P), Udegree preserved in caller
+    return P, Uknot
 
 
 def export_dutmod_multiple_curves(curves: list, degree: int) -> str:
     """
-    Required function 4 (academic).
-    Formats the DUTMod/DISCO bsplinecurve.dat file content for multiple curves.
-
-    Academic variables in output:
-        Unum      — number of control points per curve
-        Udegree   — B-spline degree
-        UKnotType — always 1 (clamped uniform)
-        P4        — control point X Y Z W (W=1.00000000)
-        Uknot     — knot values
-
-    Precision rules:
-        - X, Y, Z  → exactly 2 decimal places  (%.2f)
-        - W        → always 1.00000000 (8 decimal places)
-        - Uknot    → 8 decimal places (%.8f)
-        - NO intermediate rounding; only final string formatting applies rounding
+    Hàm 4 (học thuật): Định dạng file bsplinecurve.dat cho DUTMod/DISCO.
+    X, Y, Z: 2 chữ số thập phân; W = 1.00000000; Uknot: 8 chữ số thập phân.
     """
     lines = []
     for idx, (P, U) in enumerate(curves):
-        Unum    = len(P)    # int Unum
-        Udegree = degree    # int Udegree
+        Unum    = len(P)
+        Udegree = degree
 
         lines.append("==========================\n")
         lines.append("\n[BSPLINECURVE]\n\n")
@@ -579,23 +497,23 @@ def export_dutmod_multiple_curves(curves: list, degree: int) -> str:
         lines.append("// Control Points\n")
 
         for ctrl_pt in P:
-            # double *P4 : X, Y, Z (%.2f) and W=1.00000000
-            x, y, z = ctrl_pt          # no intermediate rounding here
+            x, y, z = ctrl_pt
             lines.append(f"{x:.2f} {y:.2f} {z:.2f} 1.00000000 0\n")
 
         lines.append("\n// UKnot\n")
         for u_val in U:
-            lines.append(f"{u_val:.8f}\n")    # double *Uknot — 8 decimal places
+            lines.append(f"{u_val:.8f}\n")
         lines.append("\n")
 
     return "".join(lines)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# VISUALISATION HELPERS
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# HÀM VẼ ĐỒ THỊ
+# ════════════════════════════════════════════════════════════════════════════
 
 def fig_to_bytes(fig) -> bytes:
+    """Chuyển figure matplotlib thành bytes PNG."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=120, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
@@ -604,6 +522,7 @@ def fig_to_bytes(fig) -> bytes:
 
 
 def plot_original(img: np.ndarray) -> bytes:
+    """Vẽ ảnh gốc grayscale."""
     fig, ax = plt.subplots(figsize=(6, 4), facecolor="#0d1117")
     ax.imshow(img, cmap="gray")
     ax.set_title("Ảnh gốc", color="#c9d1d9", fontsize=11, fontweight="600", pad=10)
@@ -616,6 +535,7 @@ def plot_original(img: np.ndarray) -> bytes:
 
 
 def plot_skeleton(skel: np.ndarray) -> bytes:
+    """Vẽ khung xương Zhang-Suen."""
     fig, ax = plt.subplots(figsize=(6, 4), facecolor="#0d1117")
     display = np.zeros((*skel.shape, 3), dtype=np.uint8)
     display[skel == 255] = [88, 166, 255]
@@ -631,6 +551,7 @@ def plot_skeleton(skel: np.ndarray) -> bytes:
 
 
 def plot_extracted_points(ordered_pts: list, img_shape: tuple) -> bytes:
+    """Vẽ các điểm pixel đã trích xuất, màu gradient theo thứ tự duyệt."""
     fig, ax = plt.subplots(figsize=(6, 4), facecolor="#0d1117")
     ax.set_facecolor("#010409")
     if ordered_pts:
@@ -657,8 +578,8 @@ def plot_extracted_points(ordered_pts: list, img_shape: tuple) -> bytes:
 
 def plot_bspline_curves(strokes: list, curves: list, degree: int,
                         img_shape: tuple) -> bytes:
-    """Render đường cong B-spline tái tạo trên nền trắng giống chữ ký gốc."""
-    # Màu mực chữ ký (xanh đậm như mực bút bi)
+    """Vẽ đường cong B-Spline tái tạo trên nền trắng (kiểu chữ ký thực)."""
+    # Màu mực xanh đậm như bút bi
     INK_COLORS = [
         "#3a3ab0", "#1a1a8c", "#2525a0", "#4040c0",
         "#2828b0", "#1515a0", "#3535b5", "#2020a8",
@@ -673,8 +594,6 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
         col = INK_COLORS[idx % len(INK_COLORS)]
         n = len(P)
 
-        # Tọa độ pixel: gốc ở góc trên trái, y tăng xuống dưới
-        # → dùng ylim(h, 0) để khớp với imshow của ảnh gốc
         t_vals = np.linspace(0, 1, max(500, len(stroke) * 3))
         curve_pts = []
         for t in t_vals:
@@ -684,13 +603,13 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
             curve_pts.append(pt)
         curve_pts = np.array(curve_pts)
 
-        # Vẽ đường cong mịn, không có đa giác điều khiển
         ax.plot(curve_pts[:, 0], curve_pts[:, 1],
                 color=col, linewidth=1.5, alpha=0.92,
                 solid_capstyle="round", solid_joinstyle="round")
 
     ax.set_xlim(0, w_img)
-    ax.set_ylim(h_img, 0)   # ← lật trục Y để khớp với hệ tọa độ ảnh (imshow)
+    # Lật trục Y để khớp với hệ tọa độ ảnh (gốc ở góc trên trái)
+    ax.set_ylim(h_img, 0)
     ax.set_aspect("equal")
     ax.axis("off")
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -701,7 +620,7 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
 
 def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
                              img_shape: tuple) -> bytes:
-    """Render đường cong B-spline tái tạo trên nền tối (chế độ kỹ thuật)."""
+    """Vẽ đường cong B-Spline trên nền tối kèm điểm điều khiển (chế độ kỹ thuật)."""
     COLORS = [
         "#58a6ff", "#f78166", "#56d364", "#e3b341",
         "#bc8cff", "#ff7b72", "#79c0ff", "#ffa657",
@@ -714,7 +633,6 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
         col = COLORS[idx % len(COLORS)]
         n = len(P)
 
-        # Tọa độ pixel: gốc ở góc trên trái, y tăng xuống dưới
         ax.scatter(stroke[:, 0], stroke[:, 1], s=1, color=col,
                    alpha=0.25, linewidths=0)
 
@@ -736,7 +654,8 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
                    alpha=0.6, zorder=5, linewidths=0)
 
     ax.set_xlim(0, w_img)
-    ax.set_ylim(h_img, 0)   # ← lật trục Y để khớp với hệ tọa độ ảnh (imshow)
+    # Lật trục Y để khớp với hệ tọa độ ảnh (gốc ở góc trên trái)
+    ax.set_ylim(h_img, 0)
     ax.set_title("Đường cong B-Spline tái tạo (chế độ kỹ thuật)", color="#c9d1d9",
                  fontsize=12, fontweight="700", pad=12)
     ax.tick_params(colors="#6e7681", labelsize=8)
@@ -752,9 +671,9 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
     return data
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
     st.markdown("""
@@ -809,9 +728,9 @@ with st.sidebar:
                         type="primary")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MAIN AREA
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# TRANG CHÍNH
+# ════════════════════════════════════════════════════════════════════════════
 
 st.markdown("""
 <div style="padding: 8px 0 24px;">
@@ -822,16 +741,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_pipeline, tab_result, tab_log = st.tabs(
     ["🖼️  Pipeline trực quan", "📈  Kết quả B-Spline", "📋  Nhật ký xử lý"]
 )
 
-# ── Session state placeholders ─────────────────────────────────────────────
 if "results" not in st.session_state:
     st.session_state.results = None
 
-# ── Run pipeline when button pressed ──────────────────────────────────────
+# ── Chạy pipeline khi nhấn nút ──────────────────────────────────────────────
 if run_btn:
     if uploaded_file is None:
         st.warning("⚠️  Vui lòng tải lên ảnh chữ ký trước.")
@@ -897,14 +814,13 @@ if run_btn:
             st.session_state.results = {"log_lines": log_lines, "error": True}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — VISUAL PIPELINE
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 1 — PIPELINE TRỰC QUAN
+# ════════════════════════════════════════════════════════════════════════════
 with tab_pipeline:
     if st.session_state.results and not st.session_state.results.get("error"):
         r = st.session_state.results
 
-        # Hàng số liệu
         n_pts    = len(r["ordered_pts"])
         n_strks  = len(r["strokes"])
         n_ctrl   = sum(len(P) for P, _ in r["curves"])
@@ -949,7 +865,6 @@ with tab_pipeline:
             st.image(plot_extracted_points(r["ordered_pts"], r["original_img"].shape),
                      use_container_width=True)
 
-        # Tải xuống diempixel.dat
         st.markdown("---")
         st.markdown('<div class="step-badge">💾 Xuất dữ liệu trung gian</div>',
                     unsafe_allow_html=True)
@@ -974,9 +889,9 @@ with tab_pipeline:
         """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — B-SPLINE RESULT
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 2 — KẾT QUẢ B-SPLINE
+# ════════════════════════════════════════════════════════════════════════════
 with tab_result:
     if st.session_state.results and not st.session_state.results.get("error"):
         r = st.session_state.results
@@ -984,7 +899,6 @@ with tab_result:
         st.markdown('<div class="step-badge">④ Tái tạo B-Spline</div>',
                     unsafe_allow_html=True)
 
-        # Hiển thị hai chế độ xem song song
         col_view1, col_view2 = st.columns(2)
         with col_view1:
             st.markdown("**🖋️ Chữ ký tái tạo (nền trắng)**")
@@ -999,7 +913,6 @@ with tab_result:
             )
             st.image(curve_img_dark, use_container_width=True)
 
-        # Chi tiết học thuật từng đường cong
         st.markdown("---")
         st.markdown("#### 📐 Tóm tắt biến học thuật (theo từng đường cong)")
         for idx, (P, U) in enumerate(r["curves"]):
@@ -1029,7 +942,6 @@ with tab_result:
                         ctrl_preview += f"\n  … ({len(P) - 5} điểm nữa)"
                     st.code(ctrl_preview, language="text")
 
-        # ── Tải xuống cuối cùng ─────────────────────────────────────────────────
         st.markdown("---")
         st.markdown('<div class="step-badge">⑤ Xuất cuối — DUTMod/DISCO</div>',
                     unsafe_allow_html=True)
@@ -1048,7 +960,6 @@ with tab_result:
                 "Unum, Udegree, UKnotType, Điểm điều khiển (X Y Z W), giá trị Uknot."
             )
 
-        # Xem trước 50 dòng đầu của file
         with st.expander("📄 Xem trước bsplinecurve.dat (50 dòng đầu)"):
             preview_lines = r["bsplinecurve_content"].splitlines()[:50]
             st.code("\n".join(preview_lines), language="text")
@@ -1064,9 +975,9 @@ with tab_result:
         """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — PROCESSING LOG
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 3 — NHẬT KÝ XỬ LÝ
+# ════════════════════════════════════════════════════════════════════════════
 with tab_log:
     if st.session_state.results:
         r = st.session_state.results

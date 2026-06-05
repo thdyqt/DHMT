@@ -337,11 +337,12 @@ def process_image_pipeline(img_bytes: bytes, log: list) -> tuple:
     log.append(f"✅  Trích xuất {len(ordered_pts):,} điểm pixel có thứ tự")
 
     # ── Build diempixel.dat content ────────────────────────────────────────
+    # Giữ nguyên tọa độ pixel (y tăng xuống dưới, gốc ở góc trên trái)
+    # để ảnh tái tạo khớp chính xác với ảnh gốc
     log.append("💾  Định dạng diempixel.dat …")
-    h = img.shape[0]
     lines = [f"{len(ordered_pts)}\n"]
     for x, y in ordered_pts:
-        lines.append(f"{float(x):.2f} {float(h - y):.2f} 0.00 1.00\n")
+        lines.append(f"{float(x):.2f} {float(y):.2f} 0.00 1.00\n")
     diempixel_dat = "".join(lines)
     log.append("✅  diempixel.dat đã sẵn sàng")
 
@@ -672,8 +673,8 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
         col = INK_COLORS[idx % len(INK_COLORS)]
         n = len(P)
 
-        # Dữ liệu điểm điều khiển đã ở hệ toạ độ toán học (y=0 ở dưới),
-        # khớp với trục Y mặc định của matplotlib (ylim(0,h)) → không cần đảo.
+        # Tọa độ pixel: gốc ở góc trên trái, y tăng xuống dưới
+        # → dùng ylim(h, 0) để khớp với imshow của ảnh gốc
         t_vals = np.linspace(0, 1, max(500, len(stroke) * 3))
         curve_pts = []
         for t in t_vals:
@@ -689,7 +690,7 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
                 solid_capstyle="round", solid_joinstyle="round")
 
     ax.set_xlim(0, w_img)
-    ax.set_ylim(0, h_img)
+    ax.set_ylim(h_img, 0)   # ← lật trục Y để khớp với hệ tọa độ ảnh (imshow)
     ax.set_aspect("equal")
     ax.axis("off")
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -713,7 +714,7 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
         col = COLORS[idx % len(COLORS)]
         n = len(P)
 
-        # Dữ liệu đã ở hệ toạ độ toán học → vẽ trực tiếp, không cần đảo Y
+        # Tọa độ pixel: gốc ở góc trên trái, y tăng xuống dưới
         ax.scatter(stroke[:, 0], stroke[:, 1], s=1, color=col,
                    alpha=0.25, linewidths=0)
 
@@ -735,7 +736,7 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
                    alpha=0.6, zorder=5, linewidths=0)
 
     ax.set_xlim(0, w_img)
-    ax.set_ylim(0, h_img)
+    ax.set_ylim(h_img, 0)   # ← lật trục Y để khớp với hệ tọa độ ảnh (imshow)
     ax.set_title("Đường cong B-Spline tái tạo (chế độ kỹ thuật)", color="#c9d1d9",
                  fontsize=12, fontweight="700", pad=12)
     ax.tick_params(colors="#6e7681", labelsize=8)

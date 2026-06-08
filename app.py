@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.interpolate import BSpline as _SpBSpline
 import streamlit as st
 
 # ── Cấu hình trang ──────────────────────────────────────────────────────────
@@ -455,11 +456,9 @@ def LSTBSplineReconstruction(Q: np.ndarray, degree: int = 3,
     ubar = chord_length_parameterization(Q)
     Uknot = generate_knot_vector(n, Udegree)
 
-    # Xây dựng ma trận cơ sở N (m × n)
-    N = np.zeros((m, n))
-    for k in range(m):
-        for i_ctrl in range(n):
-            N[k, i_ctrl] = Nip(i_ctrl, Udegree, ubar[k], Uknot)
+    # Xây dựng ma trận cơ sở N (m × n) — dùng scipy để vectorize, nhanh hơn nhiều
+    # so với O(m×n) lần gọi đệ quy Nip() trong Python thuần
+    N = _SpBSpline.design_matrix(ubar, Uknot, Udegree).toarray()
 
     # Ma trận sai phân bậc 2 D2 để phạt độ cong (Δ²Pᵢ = Pᵢ - 2Pᵢ₊₁ + Pᵢ₊₂)
     D2 = np.zeros((max(1, n - 2), n))
@@ -600,13 +599,8 @@ def plot_bspline_curves(strokes: list, curves: list, degree: int,
         n = len(P)
 
         t_vals = np.linspace(0, 1, max(500, len(stroke) * 3))
-        curve_pts = []
-        for t in t_vals:
-            pt = np.zeros(3)
-            for i_ctrl in range(n):
-                pt += Nip(i_ctrl, degree, t, U) * P[i_ctrl]
-            curve_pts.append(pt)
-        curve_pts = np.array(curve_pts)
+        # Evaluate B-Spline vectorized (scipy C-level) thay cho vòng lặp Python
+        curve_pts = _SpBSpline(U, P, degree)(t_vals)
 
         ax.plot(curve_pts[:, 0], curve_pts[:, 1],
                 color=col, linewidth=1.5, alpha=0.92,
@@ -642,13 +636,8 @@ def plot_bspline_curves_dark(strokes: list, curves: list, degree: int,
                    alpha=0.25, linewidths=0)
 
         t_vals = np.linspace(0, 1, max(500, len(stroke) * 3))
-        curve_pts = []
-        for t in t_vals:
-            pt = np.zeros(3)
-            for i_ctrl in range(n):
-                pt += Nip(i_ctrl, degree, t, U) * P[i_ctrl]
-            curve_pts.append(pt)
-        curve_pts = np.array(curve_pts)
+        # Evaluate B-Spline vectorized (scipy C-level) thay cho vòng lặp Python
+        curve_pts = _SpBSpline(U, P, degree)(t_vals)
 
         ax.plot(curve_pts[:, 0], curve_pts[:, 1],
                 color=col, linewidth=1.6, alpha=0.95,

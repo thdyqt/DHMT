@@ -481,10 +481,13 @@ def LSTBSplineReconstruction(Q: np.ndarray, degree: int = 3,
     return P, Uknot
 
 
-def export_dutmod_multiple_curves(curves: list, degree: int) -> str:
+def export_dutmod_multiple_curves(curves: list, degree: int, img_height: float = 0.0) -> str:
     """
     Hàm 4 (học thuật): Định dạng file bsplinecurve.dat cho DUTMod/DISCO.
     X, Y, Z: 2 chữ số thập phân; W = 1.00000000; Uknot: 8 chữ số thập phân.
+
+    Lưu ý: DUTModeling/DISCO dùng hệ tọa độ toán học (Y tăng lên trên), còn tọa độ
+    ảnh có Y tăng xuống dưới. Truyền img_height để lật trục Y: y_out = img_height - y.
     """
     lines = []
     for idx, (P, U) in enumerate(curves):
@@ -498,7 +501,9 @@ def export_dutmod_multiple_curves(curves: list, degree: int) -> str:
 
         for ctrl_pt in P:
             x, y, z = ctrl_pt
-            lines.append(f"{x:.2f} {y:.2f} {z:.2f} 1.00000000 0\n")
+            # Lật trục Y: hệ tọa độ ảnh có Y↓, DUTModeling có Y↑
+            y_out = (img_height - y) if img_height > 0 else y
+            lines.append(f"{x:.2f} {y_out:.2f} {z:.2f} 1.00000000 0\n")
 
         lines.append("\n// UKnot\n")
         for u_val in U:
@@ -788,7 +793,8 @@ if run_btn:
 
             # Bước 4 — Định dạng bsplinecurve.dat
             log_lines.append("📝  Định dạng bsplinecurve.dat (DUTMod/DISCO) …")
-            bsplinecurve_content = export_dutmod_multiple_curves(curves, degree)
+            img_h = float(original_img.shape[0])  # chiều cao ảnh để lật trục Y
+            bsplinecurve_content = export_dutmod_multiple_curves(curves, degree, img_h)
             log_lines.append("✅  bsplinecurve.dat đã sẵn sàng")
 
             progress.progress(100, text="Hoàn tất! ✅")

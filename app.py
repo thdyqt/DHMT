@@ -484,7 +484,7 @@ def LSTBSplineReconstruction(Q: np.ndarray, degree: int = 3,
 def export_dutmod_multiple_curves(curves: list, degree: int, img_height: float = 0.0) -> str:
     """
     Hàm 4 (học thuật): Định dạng file bsplinecurve.dat cho DUTMod/DISCO.
-    X, Y, Z: 2 chữ số thập phân; W = 1.00000000; Uknot: 8 chữ số thập phân.
+    X, Y, Z, W: 8 chữ số thập phân; Uknot: 8 chữ số thập phân.
 
     Lưu ý: DUTModeling/DISCO dùng hệ tọa độ toán học (Y tăng lên trên), còn tọa độ
     ảnh có Y tăng xuống dưới. Truyền img_height để lật trục Y: y_out = img_height - y.
@@ -503,7 +503,7 @@ def export_dutmod_multiple_curves(curves: list, degree: int, img_height: float =
             x, y, z = ctrl_pt
             # Lật trục Y: hệ tọa độ ảnh có Y↓, DUTModeling có Y↑
             y_out = (img_height - y) if img_height > 0 else y
-            lines.append(f"{x:.2f} {y_out:.2f} {z:.2f} 1.00000000 0\n")
+            lines.append(f"{x:.8f} {y_out:.8f} {z:.8f} 1.00000000 0\n")
 
         lines.append("\n// UKnot\n")
         for u_val in U:
@@ -941,7 +941,7 @@ with tab_result:
                         knot_preview += " …"
                     st.markdown(f"**Uknot (8 giá trị đầu):** `{knot_preview}`")
                     ctrl_preview = "\n".join(
-                        f"  {p[0]:.2f}  {p[1]:.2f}  {p[2]:.2f}  1.00000000  0"
+                        f"  {p[0]:.8f}  {p[1]:.8f}  {p[2]:.8f}  1.00000000  0"
                         for p in P[:5]
                     )
                     if len(P) > 5:
